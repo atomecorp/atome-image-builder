@@ -1,0 +1,14 @@
+#!/bin/sh
+
+set -e
+
+if [ $# -eq 0 ]; then
+	for i in $(ifconfig -l); do
+		if [ $i = lo0 ]; then
+			continue
+		fi
+		echo $i
+	done
+else
+	sysrc "ifconfig_$1=DHCP"
+fi

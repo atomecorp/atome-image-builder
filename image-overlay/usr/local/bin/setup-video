@@ -1,0 +1,28 @@
+#!/bin/sh
+
+set -e
+
+if [ $# -eq 0 ]; then
+	echo amdgpu
+	echo i915kms
+	echo radeonkms
+	pkg rquery -g '%n' nvidia-driver\*
+else
+
+	case $1 in
+		nvidia*)
+			package=$1
+			;;
+		amdgpu|i915kms|radeonkms)
+			package="drm-kmod"
+			kld_list=$1
+	esac
+
+	pkg install -y $package
+	if [ -n "$kld_list" ]; then
+		sysrc kld_list=$kld_list
+	else
+		sysrc -x kld_list || true
+	fi
+
+fi

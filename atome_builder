@@ -6,16 +6,19 @@ unit=0
 case $architecture in
 	"arm")
 		variant=armv7
-		base_image="FreeBSD-13.0-CURRENT-arm-armv7-GENERICSD-20210107-f2b794e1e90-255641.img"
+		base_image="FreeBSD-13.0-STABLE-arm-armv7-GENERICSD-20211021-e058d44fda3-247742.img"
 		base_url="http://ftp.freebsd.org/pub/FreeBSD/snapshots/arm/armv7/ISO-IMAGES/13.0/"
+		base_image="FreeBSD-13.0-RELEASE-arm-armv7-GENERICSD.img"
+		base_url="http://ftp.freebsd.org/pub/FreeBSD/releases/arm/armv7/ISO-IMAGES/13.0/"
 		xbuild=1
 		rootpart="s2a"
 		create_user=0
+		growfs="+4G"
 		;;
 	"amd64")
 		variant=$architecture
-		base_image="FreeBSD-12.2-RELEASE-amd64.raw"
-		base_url="https://download.freebsd.org/ftp/releases/VM-IMAGES/12.2-RELEASE/amd64/Latest/"
+		base_image="FreeBSD-13.0-RELEASE-amd64.raw"
+		base_url="https://download.freebsd.org/ftp/releases/VM-IMAGES/13.0-RELEASE/amd64/Latest/"
 		xbuild=0
 		rootpart="p4"
 		create_user=1
@@ -67,6 +70,11 @@ sleep 2
 if [ -n "$growfs" ]; then
 	gpart recover /dev/ggate${unit}
 	gpart resize -i $(echo $rootpart | sed 's/^[^0-9]*\([0-9]*\).*$/\1/') /dev/ggate${unit}
+	case $rootpart in
+		s2a)
+			gpart resize -i 1 /dev/ggate${unit}s2
+			;;
+	esac
 	growfs -y /dev/ggate${unit}${rootpart}
 fi
 
@@ -83,7 +91,14 @@ if [ "${xbuild}" -eq 1 ]; then
 	cp /usr/local/bin/qemu-${architecture}-static $target/usr/local/bin
 fi
 
-chroot $target /usr/sbin/pkg install -y sqlite3 rubygem-bundler git-lite node12
+
+if [ "$architecture" = "arm" ]; then
+	chroot $target /usr/sbin/pkg install -y sqlite3 rubygem-bundler git-lite node10
+fi
+
+if [ "$architecture" = "amd64" ]; then
+	chroot $target /usr/sbin/pkg install -y sqlite3 rubygem-bundler git-lite node14
+fi
 
 if [ "$architecture" = "arm" ]; then
 	chroot $target /usr/bin/sed -i '' -e 's|/nxb-bin||g' "/usr/local/lib/ruby/2.7/armv7-freebsd13/rbconfig.rb"
@@ -92,8 +107,10 @@ fi
 if [ "$create_user" -eq 1 ]; then
 	chroot $target /usr/sbin/pw user add freebsd -m
 fi
+ 
 
-chroot $target /usr/bin/su - freebsd -c "git clone --branch master https://github.com/atomecorp/atome.git /home/freebsd/atome"
+chroot $target /usr/bin/su - freebsd -c "git clone --branch master --depth 1 https://github.com/atomecorp/atome.git /home/freebsd/atome"
+chroot $target /usr/bin/su - freebsd -c "git clone --branch master --depth 1 https://github.com/atomecorp/third_parties.git /home/freebsd/atome/www/public/js/third_parties"
 
 chroot $target /usr/bin/su - freebsd -c "cd /home/freebsd/atome && bundle config path /home/freebsd/.vendor"
 chroot $target /usr/bin/su - freebsd -c "bundle config set without 'electron rhodes development'"
